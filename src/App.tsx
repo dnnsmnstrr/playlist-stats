@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { spotify } from './services/spotify';
+import { BrowserRouter as Router, useLocation, use } from 'react-router-dom';
+import { spotify } from './services/spotify'; // Adjust the import according to your project structure
 import { getArtistInfo } from './services/musicbrainz';
-import { Login } from './components/Login';
 import { PlaylistSelector } from './components/PlaylistSelector';
 import { AnalysisResults } from './components/AnalysisResults';
-import type { SpotifyPlaylist, PlaylistTrack, ArtistAnalysis } from './types/spotify';
+import { Login } from './components/Login';
+import type { SpotifyPlaylist, ArtistAnalysis, PlaylistTrack } from './types/spotify';
+import { Playlist, TrackItem } from '@spotify/web-api-ts-sdk';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -13,6 +15,7 @@ function App() {
   const [analysis, setAnalysis] = useState<ArtistAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [userId, setUserId] = useState<string>('');
+  const location = useLocation();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -20,9 +23,21 @@ function App() {
         await spotify.authenticate();
         setIsAuthenticated(true);
         const user = await spotify.currentUser.profile();
-        const userPlaylists = await spotify.playlists.getUsersPlaylists(userId || user.id, undefined);
-        console.log(userPlaylists)
-        setPlaylists(userPlaylists.items);
+        if (user.id && location.pathname.length === 1 && !playlists.length) {
+          setIsLoading(true);
+          let userPlaylists: Playlist<TrackItem>[] = [];
+          let offset = 0;
+          let total = 0;
+  
+          do {
+            const response = await spotify.playlists.getUsersPlaylists(userId || user.id, 50, offset);
+            userPlaylists = userPlaylists.concat(response.items);
+            total = response.total;
+            offset += 50;
+          } while (userPlaylists.length < total && offset < total);
+          setPlaylists(userPlaylists);
+          setIsLoading(false);
+        }
       } catch (error) {
         console.error('Authentication error:', error);
         setIsAuthenticated(false);
@@ -32,6 +47,19 @@ function App() {
     checkAuth();
   }, [userId]);
 
+  const getSelectedPlaylist = async (id: string) => {
+    const playlist = await spotify.playlists.getPlaylist(id);
+    setSelectedPlaylist(playlist);
+    analyzePlaylist(playlist);
+  }
+
+  useEffect(() => {
+    console.log(location)
+    if (location.pathname !== '/callback' && location.pathname !== '/' && !selectedPlaylist) {
+      getSelectedPlaylist(location.pathname.split('/')[1])
+    }
+  }, [location])
+  
   const analyzePlaylist = async (playlist: SpotifyPlaylist) => {
     setIsLoading(true);
     setSelectedPlaylist(playlist);
@@ -60,10 +88,10 @@ function App() {
         // Count artists
         for (const artist of track.artists) {
           artistCounts[artist.name] = (artistCounts[artist.name] || 0) + 1;
-          
+
           // Fetch artist info from MusicBrainz
           const artistInfo = await getArtistInfo(artist.name);
-          
+
           if (artistInfo) {
             // Gender analysis
             if (artistInfo.type === 'Group') {
@@ -73,7 +101,7 @@ function App() {
             } else {
               genderData.unknown++;
             }
-            
+
             // Language analysis
             if (artistInfo.area?.name) {
               const language = artistInfo.area.name;
@@ -127,11 +155,17 @@ function App() {
 
       <main className="container mx-auto py-8">
         {!selectedPlaylist ? (
-          <PlaylistSelector playlists={playlists} onSelect={analyzePlaylist} />
+      <PlaylistSelector playlists={playlists} isLoading={isLoading} onSelect={(playlist) => {
+        window.location.pathname = `/${playlist.id}`
+        analyzePlaylist(playlist)
+      }} />
         ) : (
           <div>
             <button
-              onClick={() => setSelectedPlaylist(null)}
+              onClick={() => {
+                setSelectedPlaylist(null)
+                window.location.pathname = '/'
+              }}
               className="mb-4 mx-6 text-green-500 hover:text-green-600"
             >
               ← Back to playlists
