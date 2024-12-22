@@ -18,6 +18,7 @@ interface AnalysisResultsProps {
 }
 
 export function AnalysisResults({ analysis }: AnalysisResultsProps) {
+  console.log(analysis)
   const genderData = Object.entries(analysis.gender).map(([name, value]) => ({
     name,
     value,
@@ -34,6 +35,11 @@ export function AnalysisResults({ analysis }: AnalysisResultsProps) {
       value,
     }))
     .sort((a, b) => Number(a.name) - Number(b.name));
+
+  const ageData = Object.entries(analysis.ages).map(([name, value]) => ({
+    name,
+    value,
+  }));
 
   return (
     <div className="p-6 space-y-8">
@@ -92,6 +98,16 @@ export function AnalysisResults({ analysis }: AnalysisResultsProps) {
           <YAxis />
           <Tooltip />
           <Bar dataKey="value" fill="#8884d8" />
+        </BarChart>
+      </div>
+
+      <div className="bg-white p-4 rounded-lg shadow">
+        <h3 className="text-lg font-semibold mb-4">Age Distribution</h3>
+        <BarChart width={600} height={300} data={ageData}>
+          <XAxis dataKey="name" />
+          <YAxis />
+          <Tooltip />
+          <Bar dataKey="value" fill="#82ca9d" />
         </BarChart>
       </div>
 

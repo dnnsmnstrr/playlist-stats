@@ -51,8 +51,9 @@ function App() {
 
       const artistCounts: Record<string, number> = {};
       const releaseYears: Record<string, number> = {};
-      const genderData: Record<string, number> = { male: 0, female: 0, group: 0, unknown: 0 };
+      const genderData: Record<string, number> = { male: 0, female: 0, group: 0, unknown: 0, 'non-binary': 0 };
       const languageData: Record<string, number> = {};
+      const ageData: Record<number, number> = {};
 
       // Process each track
       for (const { track } of tracks) {
@@ -78,6 +79,14 @@ function App() {
               const language = artistInfo.area.name;
               languageData[language] = (languageData[language] || 0) + 1;
             }
+
+            // Age analysis
+            if (artistInfo['life-span']?.begin) {
+              const birthYear = new Date(artistInfo['life-span'].begin).getFullYear();
+              const currentYear = new Date().getFullYear();
+              const age = currentYear - birthYear;
+              ageData[age] = (ageData[age] || 0) + 1;
+            }
           }
         }
 
@@ -95,6 +104,7 @@ function App() {
       setAnalysis({
         gender: genderData,
         languages: languageData,
+        ages: ageData,
         releaseYears,
         topArtists,
       });
@@ -122,7 +132,7 @@ function App() {
           <div>
             <button
               onClick={() => setSelectedPlaylist(null)}
-              className="mb-4 text-green-500 hover:text-green-600"
+              className="mb-4 mx-6 text-green-500 hover:text-green-600"
             >
               ← Back to playlists
             </button>

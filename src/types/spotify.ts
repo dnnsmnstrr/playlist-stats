@@ -26,4 +26,5 @@ export interface ArtistAnalysis {
   languages: Record<string, number>;
   releaseYears: Record<string, number>;
   topArtists: Array<{ name: string; count: number }>;
+  ages: Record<number, number>;
 }
