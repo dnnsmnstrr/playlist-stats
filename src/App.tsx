@@ -35,6 +35,7 @@ function App() {
     setPlaylists(userPlaylists);
     setIsLoading(false);
   }
+  
   useEffect(() => {
     const checkAuth = async () => {
       try {
