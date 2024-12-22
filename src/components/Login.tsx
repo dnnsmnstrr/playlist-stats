@@ -1,4 +1,3 @@
-import React from 'react';
 import { Music } from 'lucide-react';
 import { spotify } from '../services/spotify';
 
