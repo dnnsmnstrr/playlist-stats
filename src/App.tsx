@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { spotify } from './services/spotify'; // Adjust the import according to your project structure
-import { getArtistInfo } from './services/musicbrainz';
+import { getArtistInfo, loadCache, saveCache } from './services/musicbrainz';
 import { PlaylistSelector } from './components/PlaylistSelector';
 import { AnalysisResults } from './components/AnalysisResults';
 import { Login } from './components/Login';
 import type { SpotifyPlaylist, ArtistAnalysis, PlaylistTrack } from './types/spotify';
 import { Playlist, TrackItem } from '@spotify/web-api-ts-sdk';
+import { areaToLanguage } from './lib/config';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -18,26 +19,31 @@ function App() {
   const [userId, setUserId] = useState<string>('');
   const location = useLocation();
   const navigate = useNavigate();
+
+  const loadPlaylists = async () => {
+    setIsLoading(true);
+    let userPlaylists: Playlist<TrackItem>[] = [];
+    let offset = 0;
+    let total = 0;
+
+    do {
+      const response = await spotify.playlists.getUsersPlaylists(userId, 50, offset);
+      userPlaylists = userPlaylists.concat(response.items);
+      total = response.total;
+      offset += 50;
+    } while (userPlaylists.length < total && offset < total);
+    setPlaylists(userPlaylists);
+    setIsLoading(false);
+  }
   useEffect(() => {
     const checkAuth = async () => {
       try {
         await spotify.authenticate();
         setIsAuthenticated(true);
         const user = await spotify.currentUser.profile();
-        if (user.id && location.pathname.length === 1 && !playlists.length) {
-          setIsLoading(true);
-          let userPlaylists: Playlist<TrackItem>[] = [];
-          let offset = 0;
-          let total = 0;
-  
-          do {
-            const response = await spotify.playlists.getUsersPlaylists(userId || user.id, 50, offset);
-            userPlaylists = userPlaylists.concat(response.items);
-            total = response.total;
-            offset += 50;
-          } while (userPlaylists.length < total && offset < total);
-          setPlaylists(userPlaylists);
-          setIsLoading(false);
+        if (!userId) {
+          setUserId(user.id);
+          loadPlaylists();
         }
       } catch (error) {
         console.error('Authentication error:', error);
@@ -46,6 +52,12 @@ function App() {
     };
 
     checkAuth();
+  }, []);
+
+  useEffect(() => {
+    if (userId && location.pathname.length === 1 && !playlists.length) {
+      loadPlaylists();
+    };
   }, [userId]);
 
   const getSelectedPlaylist = async (id: string) => {
@@ -62,9 +74,15 @@ function App() {
   }, [location])
   
   const analyzePlaylist = async (playlist: SpotifyPlaylist) => {
+    const cachedAnalysis = localStorage.getItem(`playlist_${playlist.id}`);
+    if (cachedAnalysis) {
+      setAnalysis(JSON.parse(cachedAnalysis));
+      return;
+    }
     setIsLoading(true);
+    setProgress(0);
     setSelectedPlaylist(playlist);
-    
+    await loadCache();
     try {
       const tracks: PlaylistTrack[] = [];
       let offset = 0;
@@ -85,9 +103,10 @@ function App() {
       const areaData: Record<string, number> = {};
       const ageData: Record<number, number> = {};
 
+
       // Process each track
+      let count = 0;
       for (const { track } of tracks) {
-        setProgress((prev) => prev + 1 / tracks.length);
         // Count artists
         for (const artist of track.artists) {
           artistCounts[artist.name] = (artistCounts[artist.name] || 0) + 1;
@@ -107,138 +126,12 @@ function App() {
 
             // Language analysis
             if (artistInfo.area?.name) {
-              const country = artistInfo.country || artistInfo.area.name || artistInfo.beginArea.name;
+              const country = artistInfo.country || artistInfo.area.name || (artistInfo['begin-area'] && artistInfo['begin-area'].name);
               areaData[country] = (areaData[country] || 0) + 1;
 
-              const countryToLanguageMap: Record<string, string> = {
-                Germany: 'German',
-                DE: 'German',
-                // German cities
-                Berlin: 'German',
-                Hamburg: 'German',
-                München: 'German',
-                Mannheim: 'German',
-                Magdeburg: 'German',
-                Düsseldorf: 'German',
-                Dresden: 'German',
-                Chemnitz: 'German',
-                Leipzig: 'German',
-                Potsdam: 'German',
-                Tübingen: 'German',
-                Frankfurt: 'German',
-                Köln: 'German',
-                Bonn: 'German',
-                Mainz: 'German',
-                Kassel: 'German',
-                Duisburg: 'German',
-                Bochum: 'German',
-                Fürth: 'German',
-                // German states
-                Hessen: 'German',
-                Bayern: 'German',
-                German: 'German',
-                // Other german-speaking countries and cities
-                Switzerland: 'German',
-                Zürich: 'German',
-                'St. Gallen': 'German',
-                CH: 'German',
-                Austria: 'German',
-                Wien: 'German',
-                AT: 'German',
-                Salzburg: 'German',
-                Linz: 'German',
-                Graz: 'German',
-                Innsbruck: 'German',
-                // English countries and cities
-                US: 'English',
-                UK: 'English',
-                GB: 'English',
-                'United States': 'English',
-                'United Kingdom': 'English',
-                'New York': 'English',
-                'Los Angeles': 'English',
-                Nashville: 'English',
-                Brooklyn: 'English',
-                Atlanta: 'English',
-                Seattle: 'English',
-                Pittsburgh: 'English',
-                Philadelphia: 'English',
-                Florida: 'English',
-                California: 'English',
-                CA: 'English',
-                NZ: 'English',
-                'New Zealand': 'English',
-                Wellington: 'English',
-                Auckland: 'English',
-                Canada: 'English',
-                IE: 'English',
-                IS: 'English',
-                Iceland: 'English',
-                England: 'English',
-                London: 'English',
-                Ireland: 'English',
-                Dublin: 'English',
-                Scotland: 'English',
-                Edinburgh: 'English',
-                AU: 'English',
-                Australia: 'English',
-                Sydney: 'English',
-                Melbourne: 'English',
-                Brisbane: 'English',
-                Perth: 'English',
-                // Other languages
-                France: 'French',
-                FR: 'French',
-                Paris: 'French',
-                BE: 'French',
-                Belgium: 'French',
-                Italy: 'Italian',
-                IT: 'Italian',
-                Rome: 'Italian',
-                Venice: 'Italian',
-                Spain: 'Spanish',
-                ES: 'Spanish',
-                Madrid: 'Spanish',
-                Barcelona: 'Spanish',
-                Mexico: 'Spanish',
-                Lima: 'Spanish',
-                MX: 'Spanish',
-                PR: 'Spanish',
-                'Puerto Rico': 'Spanish',
-                'Netherlands': 'Dutch',
-                NL: 'Dutch',
-                Amsterdam: 'Dutch',
-                DK: 'Danish',
-                Denmark: 'Danish',
-                Copenhagen: 'Danish',
-                Sweden: 'Swedish',
-                SE: 'Swedish',
-                Stockholm: 'Swedish',
-                Norway: 'Norwegian',
-                NO: 'Norwegian',
-                Oslo: 'Norwegian',
-                Finland: 'Finnish',
-                FI: 'Finnish',
-                Helsinki: 'Finnish',
-                Brazil: 'Portuguese',
-                BR: 'Portuguese',
-                PT: 'Portuguese',
-                Portugal: 'Portuguese',
-                IL: 'English',
-                Israel: 'English',
-                'Tel Aviv': 'English',
-                Japan: 'Japanese',
-                JP: 'Japanese',
-                Tokyo: 'Japanese',
-                China: 'Chinese',
-                CN: 'Chinese',
-                Beijing: 'Chinese',
-                'Hong Kong': 'Chinese'
-              };
-
-              const language = countryToLanguageMap[country] || 'Unknown';
+              const language = areaToLanguage[country] || 'Unknown';
               if (language === 'Unknown') {
-                console.log('Unknown language for country:', country, artistInfo);
+                console.log('Unknown language for country:', country, artistInfo, track);
               }
               languageData[language] = (languageData[language] || 0) + 1;
             }
@@ -251,11 +144,16 @@ function App() {
               ageData[age] = (ageData[age] || 0) + 1;
             }
           }
-        }
 
+        }
+        
         // Release year analysis
         const year = new Date(track.album.release_date).getFullYear();
         releaseYears[year] = (releaseYears[year] || 0) + 1;
+        
+        // Update progress
+        count++;
+        setProgress(count / tracks.length);
       }
 
       // Calculate top 5 artists
@@ -264,14 +162,22 @@ function App() {
         .slice(0, 5)
         .map(([name, count]) => ({ name, count }));
 
-      setAnalysis({
+      
+      const analysisResult = {
         gender: genderData,
         languages: languageData,
         ages: ageData,
-        areaData,
+        countries: areaData,
         releaseYears,
         topArtists,
-      });
+      };
+
+      setAnalysis(analysisResult);
+      localStorage.setItem(`playlist_${playlist.id}`, JSON.stringify({
+        ...playlist,
+        ...analysisResult
+      }));
+      saveCache();
     } catch (error) {
       console.error('Analysis error:', error);
     } finally {
@@ -292,15 +198,15 @@ function App() {
       <main className="container mx-auto py-8">
         {!selectedPlaylist ? (
       <PlaylistSelector playlists={playlists} isLoading={isLoading} onSelect={(playlist) => {
-        // window.location.pathname = `/${playlist.id}`
         navigate(`/${playlist.id}`)
         analyzePlaylist(playlist)
       }} />
         ) : (
           <div>
-            <div className="flex items-start justify-between">
+            <div className="flex items-center justify-between">
               <button
                 onClick={() => {
+                  history.pushState({}, '', '/');
                   setSelectedPlaylist(null)
                   setAnalysis(null);
                 }}
@@ -313,7 +219,16 @@ function App() {
                 <span className="text-gray-600 mb-4 ml-2 font-medium text-sm">
                   {selectedPlaylist.tracks.total} tracks
                 </span>
-
+                <button
+                  title='Re-analyze playlist'
+                  onClick={() => {
+                    localStorage.removeItem(`playlist_${selectedPlaylist.id}`);
+                    analyzePlaylist(selectedPlaylist);
+                  }}
+                  className="text-white px-4 py-2 rounded-lg ml-4"
+                >
+                  🔃
+                </button>
               </h2>
             </div>
             

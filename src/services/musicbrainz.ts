@@ -1,4 +1,4 @@
-import { IBrowseArtistsResult, MusicBrainzApi } from 'musicbrainz-api';
+import { MusicBrainzApi } from 'musicbrainz-api';
 
 const mbApi = new MusicBrainzApi({
     appName: 'SpotifyPlaylistAnalyzer',
@@ -6,10 +6,46 @@ const mbApi = new MusicBrainzApi({
     appContactInfo: 'dennismuensterer@mail.com',
 });
 
-const MUSICBRAINZ_API = 'https://musicbrainz.org/ws/2';
-const email = 'dennismuensterer@gmail.com';
+type ArtistInfo = {
+  id: string
+  name: string
+  area: { name: string }
+  gender?: 'male' | 'female' | 'non-binary' | 'unknown'
+  country?: string
+  disambiguation?: string
+  'begin-area'?: { name: string, type: 'Country' | 'City' }
+  'life-span'?: { begin: string, ended?: string }
+  tags?: { count: number, name: string }[]
+}
+type ArtistCache = { [name: string]: ArtistInfo }
+const artistCache: ArtistCache = {};
 
-const artistCache: { [name: string]: any } = {};
+export async function saveCache() {
+  console.log('Saving artist cache...');
+  const simplifiedCache = Object.entries(artistCache).reduce<ArtistCache>((acc, [name, artist]) => {
+    acc[name] = {
+      id: artist?.id,
+      name: artist?.name,
+      gender: artist?.gender,
+      disambiguation: artist?.disambiguation,
+      country: artist?.country,
+      area: artist?.area,
+      'begin-area': artist?.['begin-area'],
+      'life-span': artist?.['life-span'],
+      tags: artist?.tags,
+    };
+    return acc;
+  }, {});
+  localStorage.setItem('artistCache', JSON.stringify(simplifiedCache));
+}
+
+export async function loadCache() {
+  console.log('Loading artist cache...');
+  const cache = localStorage.getItem('artistCache');
+  if (cache) {
+    Object.assign(artistCache, JSON.parse(cache));
+  }
+}
 
 export async function getArtistInfo(name: string) {
   if (artistCache[name]) {
@@ -18,18 +54,8 @@ export async function getArtistInfo(name: string) {
   }
 
   try {
-    const response = await mbApi.restGet('/artist/', { query: name}) as IBrowseArtistsResult;
+    const response = await mbApi.restGet('/artist/', { query: name}) as { artists: ArtistInfo[] };
     const artist = response.artists[0] || null;
-    // const response = await fetch(
-    //   `${MUSICBRAINZ_API}/artist/?query=${encodeURIComponent(name)}&fmt=json`,
-    //   {
-    //     headers: {
-    //       'User-Agent': `SpotifyPlaylistAnalyzer/1.0.0 (${email})`,
-    //     },
-    //   }
-    // );
-    // const data = await response.json();
-    // const artist = data.artists?.[0] || null;
     artistCache[name] = artist;
     return artist;
   } catch (error) {
