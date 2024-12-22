@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, useLocation, use } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { spotify } from './services/spotify'; // Adjust the import according to your project structure
 import { getArtistInfo } from './services/musicbrainz';
 import { PlaylistSelector } from './components/PlaylistSelector';
@@ -16,7 +16,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [userId, setUserId] = useState<string>('');
   const location = useLocation();
-
+  const navigate = useNavigate();
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -81,6 +81,7 @@ function App() {
       const releaseYears: Record<string, number> = {};
       const genderData: Record<string, number> = { male: 0, female: 0, group: 0, unknown: 0, 'non-binary': 0 };
       const languageData: Record<string, number> = {};
+      const areaData: Record<string, number> = {};
       const ageData: Record<number, number> = {};
 
       // Process each track
@@ -104,7 +105,133 @@ function App() {
 
             // Language analysis
             if (artistInfo.area?.name) {
-              const language = artistInfo.area.name;
+              const country = artistInfo.country || artistInfo.area.name || artistInfo.beginArea.name;
+              areaData[country] = (areaData[country] || 0) + 1;
+
+              const countryToLanguageMap: Record<string, string> = {
+                Germany: 'German',
+                DE: 'German',
+                // German cities
+                Berlin: 'German',
+                Hamburg: 'German',
+                München: 'German',
+                Mannheim: 'German',
+                Magdeburg: 'German',
+                Düsseldorf: 'German',
+                Dresden: 'German',
+                Leipzig: 'German',
+                Potsdam: 'German',
+                Tübingen: 'German',
+                Frankfurt: 'German',
+                Köln: 'German',
+                Bonn: 'German',
+                Mainz: 'German',
+                Kassel: 'German',
+                Duisburg: 'German',
+                Bochum: 'German',
+                Fürth: 'German',
+                // German states
+                Hessen: 'German',
+                Bayern: 'German',
+                German: 'German',
+                // Other german-speaking countries and cities
+                Switzerland: 'German',
+                Zürich: 'German',
+                'St. Gallen': 'German',
+                CH: 'German',
+                Austria: 'German',
+                Wien: 'German',
+                AT: 'German',
+                Salzburg: 'German',
+                Linz: 'German',
+                Graz: 'German',
+                Innsbruck: 'German',
+                // English countries and cities
+                US: 'English',
+                UK: 'English',
+                GB: 'English',
+                'United States': 'English',
+                'United Kingdom': 'English',
+                'New York': 'English',
+                'Los Angeles': 'English',
+                Nashville: 'English',
+                Brooklyn: 'English',
+                Atlanta: 'English',
+                Seattle: 'English',
+                Pittsburgh: 'English',
+                Philadelphia: 'English',
+                Florida: 'English',
+                California: 'English',
+                CA: 'English',
+                NZ: 'English',
+                'New Zealand': 'English',
+                Wellington: 'English',
+                Auckland: 'English',
+                Canada: 'English',
+                IE: 'English',
+                IS: 'English',
+                Iceland: 'English',
+                England: 'English',
+                London: 'English',
+                Ireland: 'English',
+                Dublin: 'English',
+                Scotland: 'English',
+                Edinburgh: 'English',
+                AU: 'English',
+                Australia: 'English',
+                Sydney: 'English',
+                France: 'French',
+                FR: 'French',
+                Paris: 'French',
+                BE: 'French',
+                Belgium: 'French',
+                Italy: 'Italian',
+                IT: 'Italian',
+                Rome: 'Italian',
+                Spain: 'Spanish',
+                ES: 'Spanish',
+                Madrid: 'Spanish',
+                Barcelona: 'Spanish',
+                Mexico: 'Spanish',
+                Lima: 'Spanish',
+                MX: 'Spanish',
+                PR: 'Spanish',
+                'Puerto Rico': 'Spanish',
+                'Netherlands': 'Dutch',
+                NL: 'Dutch',
+                Amsterdam: 'Dutch',
+                DK: 'Danish',
+                Denmark: 'Danish',
+                Copenhagen: 'Danish',
+                Sweden: 'Swedish',
+                SE: 'Swedish',
+                Stockholm: 'Swedish',
+                Norway: 'Norwegian',
+                NO: 'Norwegian',
+                Oslo: 'Norwegian',
+                Finland: 'Finnish',
+                FI: 'Finnish',
+                Helsinki: 'Finnish',
+                Brazil: 'Portuguese',
+                BR: 'Portuguese',
+                PT: 'Portuguese',
+                Portugal: 'Portuguese',
+                IL: 'English',
+                Israel: 'English',
+                'Tel Aviv': 'English',
+                Japan: 'Japanese',
+                JP: 'Japanese',
+                Tokyo: 'Japanese',
+                China: 'Chinese',
+                CN: 'Chinese',
+                Beijing: 'Chinese',
+                'Hong Kong': 'Chinese'
+              };
+
+              const language = countryToLanguageMap[country] || 'Unknown';
+              if (language === 'Unknown') {
+                console.log('Unknown language for country:', country, artistInfo);
+              }
               languageData[language] = (languageData[language] || 0) + 1;
             }
 
@@ -133,6 +260,7 @@ function App() {
         gender: genderData,
         languages: languageData,
         ages: ageData,
+        areaData,
         releaseYears,
         topArtists,
       });
@@ -156,20 +284,30 @@ function App() {
       <main className="container mx-auto py-8">
         {!selectedPlaylist ? (
       <PlaylistSelector playlists={playlists} isLoading={isLoading} onSelect={(playlist) => {
-        window.location.pathname = `/${playlist.id}`
+        // window.location.pathname = `/${playlist.id}`
+        navigate(`/${playlist.id}`)
         analyzePlaylist(playlist)
       }} />
         ) : (
           <div>
-            <button
-              onClick={() => {
-                setSelectedPlaylist(null)
-                window.location.pathname = '/'
-              }}
-              className="mb-4 mx-6 text-green-500 hover:text-green-600"
-            >
-              ← Back to playlists
-            </button>
+            <div className="flex items-start justify-between">
+              <button
+                onClick={() => {
+                  setSelectedPlaylist(null)
+                  setAnalysis(null);
+                }}
+                className="mb-4 mx-6 text-green-500 hover:text-green-600"
+              >
+                ← Back to playlists
+              </button>
+              <h2 className="text-2xl font-semibold mb-4">
+                {selectedPlaylist.name}
+                <span className="text-gray-600 mb-4 ml-2 font-medium text-sm">
+                  {selectedPlaylist.tracks.total} tracks
+                </span>
+
+              </h2>
+            </div>
             
             {isLoading ? (
               <div className="text-center py-12">
