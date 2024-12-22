@@ -14,6 +14,7 @@ function App() {
   const [selectedPlaylist, setSelectedPlaylist] = useState<SpotifyPlaylist | null>(null);
   const [analysis, setAnalysis] = useState<ArtistAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [userId, setUserId] = useState<string>('');
   const location = useLocation();
   const navigate = useNavigate();
@@ -86,6 +87,7 @@ function App() {
 
       // Process each track
       for (const { track } of tracks) {
+        setProgress((prev) => prev + 1 / tracks.length);
         // Count artists
         for (const artist of track.artists) {
           artistCounts[artist.name] = (artistCounts[artist.name] || 0) + 1;
@@ -119,6 +121,7 @@ function App() {
                 Magdeburg: 'German',
                 Düsseldorf: 'German',
                 Dresden: 'German',
+                Chemnitz: 'German',
                 Leipzig: 'German',
                 Potsdam: 'German',
                 Tübingen: 'German',
@@ -180,6 +183,10 @@ function App() {
                 AU: 'English',
                 Australia: 'English',
                 Sydney: 'English',
+                Melbourne: 'English',
+                Brisbane: 'English',
+                Perth: 'English',
+                // Other languages
                 France: 'French',
                 FR: 'French',
                 Paris: 'French',
@@ -188,6 +195,7 @@ function App() {
                 Italy: 'Italian',
                 IT: 'Italian',
                 Rome: 'Italian',
+                Venice: 'Italian',
                 Spain: 'Spanish',
                 ES: 'Spanish',
                 Madrid: 'Spanish',
@@ -313,6 +321,7 @@ function App() {
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>
                 <p className="mt-4 text-gray-600">Analyzing playlist...</p>
+                <p className="mt-4 text-gray-600">{Math.round(progress * 100)}%</p>
               </div>
             ) : (
               analysis && <AnalysisResults analysis={analysis} />
