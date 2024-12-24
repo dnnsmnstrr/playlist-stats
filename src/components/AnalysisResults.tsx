@@ -140,22 +140,24 @@ export function AnalysisResults({ analysis }: AnalysisResultsProps) {
         </ResponsiveContainer>
       </div>
 
-      <div className="bg-white p-4 rounded-lg shadow">
-        <h3 className="text-lg font-semibold mb-4">Top 5 Artists</h3>
-        <ul className="space-y-2">
-          {analysis.topArtists.map((artist, index) => (
-            <li
-              key={artist.name}
-              className="flex justify-between items-center p-2 bg-gray-50 rounded"
-            >
-              <span className="font-medium">{artist.name}</span>
-              <span className="text-gray-600">
-                {artist.count} track{artist.count > 1 ? 's' : ''}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
+      {analysis.topArtists.length > 0 && (
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="text-lg font-semibold mb-4">Top 5 Artists</h3>
+          <ul className="space-y-2">
+            {analysis.topArtists.map((artist) => (
+              <li
+                key={artist.name}
+                className="flex justify-between items-center p-2 bg-gray-50 rounded"
+              >
+                <span className="font-medium">{artist.name}</span>
+                <span className="text-gray-600">
+                  {artist.count} track{artist.count > 1 ? 's' : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

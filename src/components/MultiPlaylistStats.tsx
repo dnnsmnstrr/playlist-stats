@@ -4,7 +4,7 @@ import type { ArtistAnalysis } from '../types/spotify';
 
 export function MultiPlaylistStats() {
   const [totalAnalysis, setAnalysis] = useState<ArtistAnalysis | null>(null);
-  const [playlistStats, setPlaylistStats] = useState<{ name: string, analysis: ArtistAnalysis }[]>([]);
+  const [playlistStats, setPlaylistStats] = useState<{ name: string, id: String, analysis: ArtistAnalysis }[]>([]);
 
   useEffect(() => {
     const aggregateAnalysis: ArtistAnalysis = {
@@ -20,7 +20,7 @@ export function MultiPlaylistStats() {
     const stats = keys.map(key => {
       const cachedAnalysis = JSON.parse(localStorage.getItem(key) || '{}') as ArtistAnalysis & { name: string };
       const playlistName = key.replace('playlist_', '');
-      return { name: cachedAnalysis.name || playlistName, analysis: cachedAnalysis };
+      return { name: cachedAnalysis.name || playlistName, analysis: cachedAnalysis, id: playlistName };
     });
 
     stats.forEach(({ analysis: cachedAnalysis }) => {
@@ -79,10 +79,11 @@ export function MultiPlaylistStats() {
             <th className="py-2 px-4 border-b">German/English</th>
             <th className="py-2 px-4 border-b">Latest Release Year</th>
             <th className="py-2 px-4 border-b">Average Age</th>
+            <th className="py-2 px-4 border-b" />
           </tr>
         </thead>
         <tbody>
-          {playlistStats.map(({ name, analysis }) => {
+          {playlistStats.map(({ name, analysis, id }) => {
             const releaseYears = Object.keys(analysis.releaseYears);
             const latestReleaseYear = Math.max(...releaseYears.map(Number));
             const averageAge = Math.round(
@@ -121,6 +122,16 @@ export function MultiPlaylistStats() {
                   <div>
                     {averageAge}
                   </div>
+                </td>
+                <td className="py-2 px-4 border-b">
+                  <button className="text-red-500" onClick={
+                    () => {
+                        if (window.confirm(`Are you sure you want to delete the playlist "${name}"?`)) {
+                          localStorage.removeItem(`playlist_${id}`);
+                          window.location.reload();
+                        }
+                    }
+                  }>X</button>
                 </td>
               </tr>
             )

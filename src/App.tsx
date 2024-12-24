@@ -193,8 +193,13 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <header className="bg-green-500 text-white p-4">
-        <h1 className="text-2xl font-bold">Spotify Playlist Analyzer</h1>
+      <header className="bg-green-500 text-white p-4 flex justify-between items-center ">
+        <a href="/">
+          <h1 className="text-2xl font-bold hover:underline">Spotify Playlist Analyzer</h1>
+        </a>
+        <a href="/stats">
+          <h2 className="text-xl font-bold hover:underline">Overall Stats</h2>
+        </a>
       </header>
 
       <main className="container mx-auto py-8">
