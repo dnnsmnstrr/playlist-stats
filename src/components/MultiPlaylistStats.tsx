@@ -3,7 +3,7 @@ import { AnalysisResults } from './AnalysisResults';
 import type { ArtistAnalysis } from '../types/spotify';
 
 export function MultiPlaylistStats() {
-  const [analysis, setAnalysis] = useState<ArtistAnalysis | null>(null);
+  const [totalAnalysis, setAnalysis] = useState<ArtistAnalysis | null>(null);
   const [playlistStats, setPlaylistStats] = useState<{ name: string, analysis: ArtistAnalysis }[]>([]);
 
   useEffect(() => {
@@ -41,29 +41,31 @@ export function MultiPlaylistStats() {
       });
     });
 
+    // Sort stats by the latest release year
+    stats.sort((a, b) => {
+      const latestYearA = Math.max(...Object.keys(a.analysis.releaseYears).map(Number));
+      const latestYearB = Math.max(...Object.keys(b.analysis.releaseYears).map(Number));
+      return latestYearB - latestYearA;
+    });
+
     setAnalysis(aggregateAnalysis);
     setPlaylistStats(stats);
   }, []);
 
-  if (!analysis) {
+  if (!totalAnalysis) {
     return <div>Loading...</div>;
   }
 
-  const calculatePercentages = (data: Record<string, number>, key?: string) => {
+  const calculatePercentages = (data: Record<string, number>, key: string) => {
     const total = Object.values(data).reduce((sum, value) => sum + value, 0);
-    if (key) {
-      return [{ key, percentage: ((data[key] / total) * 100).toFixed(2) }];
-    }
-    return Object.entries(data).map(([key, value]) => ({
-      key,
-      percentage: ((value / total) * 100).toFixed(2),
-    }));
+    const value = data[key] || 0;
+    return ((value / total) * 100);
   };
 
   return (
     <div className="p-6 space-y-8">
       <h2 className="text-2xl font-semibold mb-4">Aggregated Playlist Analysis</h2>
-      <AnalysisResults analysis={analysis} />
+      <AnalysisResults analysis={totalAnalysis} />
       <h3 className="text-xl font-semibold mb-4">Playlist Percentages</h3>
       <table className="min-w-full bg-white">
         <thead>
@@ -71,40 +73,58 @@ export function MultiPlaylistStats() {
             <th className="py-2 px-4 border-b">Playlist</th>
             <th className="py-2 px-4 border-b">Male</th>
             <th className="py-2 px-4 border-b">Female</th>
+            <th className="py-2 px-4 border-b">Male/Female</th>
             <th className="py-2 px-4 border-b">German</th>
             <th className="py-2 px-4 border-b">English</th>
+            <th className="py-2 px-4 border-b">German/English</th>
             <th className="py-2 px-4 border-b">Latest Release Year</th>
             <th className="py-2 px-4 border-b">Average Age</th>
           </tr>
         </thead>
         <tbody>
-          {playlistStats.map(({ name, analysis }) => (
-            <tr key={name}>
-              <td className="py-2 px-4 border-b">{name}</td>
-              <td className="py-2 px-4 border-b">
-                <div>{calculatePercentages(analysis.gender, 'male')[0].percentage}%</div>
-              </td>
-              <td className="py-2 px-4 border-b">
-                <div>{calculatePercentages(analysis.gender, 'female')[0].percentage}%</div>
-              </td>
-              <td className="py-2 px-4 border-b">
-                <div>{calculatePercentages(analysis.languages, 'German')[0].percentage}%</div>
-              </td>
-              <td className="py-2 px-4 border-b">
-                <div>{calculatePercentages(analysis.languages, 'English')[0].percentage}%</div>
-              </td>
-              <td className="py-2 px-4 border-b">
-                <div>{Object.keys(analysis.releaseYears)[Object.keys(analysis.releaseYears).length - 1]}</div>
-
-              </td>
-              <td className="py-2 px-4 border-b">
-                <div>
-                  {Math.round(Object.entries(analysis.ages).reduce((sum, [age, count]) => sum + Number(age) * count, 0) /
-                    Object.values(analysis.ages).reduce((sum, count) => sum + count, 0))}
-                </div>
-              </td>
-            </tr>
-          ))}
+          {playlistStats.map(({ name, analysis }) => {
+            const releaseYears = Object.keys(analysis.releaseYears);
+            const latestReleaseYear = Math.max(...releaseYears.map(Number));
+            const averageAge = Math.round(
+              Object.entries(analysis.ages).reduce((sum, [age, count]) => sum + Number(age) * count, 0) /
+              Object.values(analysis.ages).reduce((sum, count) => sum + count, 0)
+            );
+            const malePercentage = calculatePercentages(analysis.gender, 'male');
+            const femalePercentage = calculatePercentages(analysis.gender, 'female');
+            const germanPercentage = calculatePercentages(analysis.languages, 'German');
+            const englishPercentage = calculatePercentages(analysis.languages, 'English');
+            return (
+              <tr key={name}>
+                <td className="py-2 px-4 border-b">{name}</td>
+                <td className="py-2 px-4 border-b">
+                  <div>{malePercentage.toFixed(2)}%</div>
+                </td>
+                <td className="py-2 px-4 border-b">
+                  <div>{femalePercentage.toFixed(2)}%</div>
+                </td>
+                <td className="py-2 px-4 border-b">
+                  <div>{(malePercentage/femalePercentage).toFixed(2)}</div>
+                </td>
+                <td className="py-2 px-4 border-b">
+                  <div>{germanPercentage.toFixed(2)}%</div>
+                </td>
+                <td className="py-2 px-4 border-b">
+                  <div>{englishPercentage.toFixed(2)}%</div>
+                </td>
+                <td className="py-2 px-4 border-b">
+                  <div>{(germanPercentage/englishPercentage).toFixed(2)}</div>
+                </td>
+                <td className="py-2 px-4 border-b">
+                  <div>{latestReleaseYear}</div>
+                </td>
+                <td className="py-2 px-4 border-b">
+                  <div>
+                    {averageAge}
+                  </div>
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>
