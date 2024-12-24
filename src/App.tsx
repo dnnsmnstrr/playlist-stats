@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Routes, Route } from 'react-router-dom';
 import { spotify } from './services/spotify'; // Adjust the import according to your project structure
 import { getArtistInfo, loadCache, saveCache } from './services/musicbrainz';
 import { PlaylistSelector } from './components/PlaylistSelector';
 import { AnalysisResults } from './components/AnalysisResults';
 import { Login } from './components/Login';
+import { MultiPlaylistStats } from './components/MultiPlaylistStats';
 import type { SpotifyPlaylist, ArtistAnalysis, PlaylistTrack } from './types/spotify';
 import { Playlist, TrackItem } from '@spotify/web-api-ts-sdk';
 import { areaToLanguage } from './lib/config';
@@ -197,53 +198,58 @@ function App() {
       </header>
 
       <main className="container mx-auto py-8">
-        {!selectedPlaylist ? (
-      <PlaylistSelector playlists={playlists} isLoading={isLoading} onSelect={(playlist) => {
-        navigate(`/${playlist.id}`)
-        analyzePlaylist(playlist)
-      }} />
-        ) : (
-          <div>
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => {
-                  history.pushState({}, '', '/');
-                  setSelectedPlaylist(null)
-                  setAnalysis(null);
-                }}
-                className="mb-4 mx-6 text-green-500 hover:text-green-600"
-              >
-                ← Back to playlists
-              </button>
-              <h2 className="text-2xl font-semibold mb-4">
-                {selectedPlaylist.name}
-                <span className="text-gray-600 mb-4 ml-2 font-medium text-sm">
-                  {selectedPlaylist.tracks.total} tracks
-                </span>
-                <button
-                  title='Re-analyze playlist'
-                  onClick={() => {
-                    localStorage.removeItem(`playlist_${selectedPlaylist.id}`);
-                    analyzePlaylist(selectedPlaylist);
-                  }}
-                  className="text-white px-4 py-2 rounded-lg ml-4"
-                >
-                  🔃
-                </button>
-              </h2>
-            </div>
-            
-            {isLoading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Analyzing playlist...</p>
-                <p className="mt-4 text-gray-600">{Math.round(progress * 100)}%</p>
-              </div>
+        <Routes>
+          <Route path="/*" element={
+            !selectedPlaylist ? (
+              <PlaylistSelector playlists={playlists} isLoading={isLoading} onSelect={(playlist) => {
+                navigate(`/${playlist.id}`)
+                analyzePlaylist(playlist)
+              }} />
             ) : (
-              analysis && <AnalysisResults analysis={analysis} />
-            )}
-          </div>
-        )}
+              <div>
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => {
+                      history.pushState({}, '', '/');
+                      setSelectedPlaylist(null)
+                      setAnalysis(null);
+                    }}
+                    className="mb-4 mx-6 text-green-500 hover:text-green-600"
+                  >
+                    ← Back to playlists
+                  </button>
+                  <h2 className="text-2xl font-semibold mb-4">
+                    {selectedPlaylist.name}
+                    <span className="text-gray-600 mb-4 ml-2 font-medium text-sm">
+                      {selectedPlaylist.tracks.total} tracks
+                    </span>
+                    <button
+                      title='Re-analyze playlist'
+                      onClick={() => {
+                        localStorage.removeItem(`playlist_${selectedPlaylist.id}`);
+                        analyzePlaylist(selectedPlaylist);
+                      }}
+                      className="text-white px-4 py-2 rounded-lg ml-4"
+                    >
+                      🔃
+                    </button>
+                  </h2>
+                </div>
+                
+                {isLoading ? (
+                  <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>
+                    <p className="mt-4 text-gray-600">Analyzing playlist...</p>
+                    <p className="mt-4 text-gray-600">{Math.round(progress * 100)}%</p>
+                  </div>
+                ) : (
+                  analysis && <AnalysisResults analysis={analysis} />
+                )}
+              </div>
+            )
+          } />
+          <Route path="/stats" element={<MultiPlaylistStats />} />
+        </Routes>
       </main>
     </div>
   );
